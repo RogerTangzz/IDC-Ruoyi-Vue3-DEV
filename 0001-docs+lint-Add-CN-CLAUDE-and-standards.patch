@@ -1,0 +1,378 @@
+diff --git a/package.json b/package.json
+index 1111111..2222222 100644
+--- a/package.json
++++ b/package.json
+@@ -9,7 +9,10 @@
+     "dev": "vite",
+     "build:prod": "vite build",
+     "build:stage": "vite build --mode staging",
+-    "preview": "vite preview"
++    "preview": "vite preview",
++    "lint": "eslint --ext .js,.vue src",
++    "lint:fix": "eslint --ext .js,.vue src --fix",
++    "format": "prettier --write \"src/**/*.{js,vue,css,scss,md,json}\""
+   },
+   "repository": {
+     "type": "git",
+@@ -43,7 +46,11 @@
+     "unplugin-vue-setup-extend-plus": "1.0.1",
+     "vite": "6.3.5",
+     "vite-plugin-compression": "0.5.1",
+-    "vite-plugin-svg-icons": "2.0.1"
++    "vite-plugin-svg-icons": "2.0.1",
++    "eslint": "^8.57.0",
++    "eslint-plugin-vue": "^9.23.0",
++    "eslint-config-prettier": "^9.1.0",
++    "prettier": "^3.3.3"
+   },
+   "overrides": {
+     "quill": "2.0.2"
+
+diff --git a/CLAUDE.md b/CLAUDE.md
+new file mode 100644
+index 0000000..1111111
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -0,0 +1,217 @@
++# CLAUDE.md — 项目架构与编码标准（RuoYi‑Vue3 前端）
++
++> **适用范围**：本仓库（Vue 3 + Element Plus + Vite，JavaScript 版）  
++> **配套后端**：RuoYi‑Vue 系列任一后端  
++> **目标**：在**最小可行变更**前提下，统一架构边界、编码规范与构建流程，保证安全、性能与可回滚性。
++
++---
++
++## 0. 仓库事实（以当前代码树为准）
++- 入口：`src/main.js`
++- 路由：`src/router/index.js`
++- 权限守卫：`src/permission.js`
++- 状态：`src/store/index.js` 与 `src/store/modules/*`（Pinia）
++- 请求封装：`src/utils/request.js`（axios 拦截器统一处理 `code/msg/data`）
++- 构建：`vite.config.js`（`server.port=80`；`/dev-api` 与 `^/v3/api-docs/(.*)` 代理到 `http://localhost:8080`）
++- 环境：`.env.development / .env.staging / .env.production`（常用键：`VITE_APP_TITLE / VITE_APP_ENV / VITE_APP_BASE_API / VITE_BUILD_COMPRESS`）
++- NPM 脚本：`yarn dev`、`yarn build:stage`、`yarn build:prod`、`yarn preview`
++- **Node 版本**：Vite 6 需 Node ≥ **20.19.0**（或 ≥ 22.12.0）
++
++---
++
++## 1. 目录结构与边界（MUST）
++
++```
++src/
++  api/           # 各业务域 HTTP 模块
++  assets/        # 静态资源与全局样式
++  components/    # 复用组件
++  directive/     # 自定义指令（如 v-hasPermi）
++  layout/        # 布局
++  router/        # 路由与守卫
++  store/         # Pinia（user/perm/app...）
++  utils/         # request.js / auth / cache 等
++  views/         # 页面
++  permission.js  # 全局路由守卫（鉴权）
++  main.js        # 应用入口
++```
++
++**边界约束**
++- **禁止**在组件中直接拼接后端 URL；统一经 `src/api/*` 与 `src/utils/request.js`。  
++- 前端权限仅用于**显示控制**；真正的授权由后端判定（接口鉴权/权限点）。  
++- 变更遵循**最小 diff**；不跨目录耦合；涉及路由/权限/状态时在对应模块集中改动。
++
++---
++
++## 2. 编码规范（Code Standards）
++
++### 2.1 通用（MUST）
++- **缩进 2 空格**，行尾 **LF**；UTF‑8；文件末尾保留换行（见 `.editorconfig`）。  
++- 统一使用 **ES 模块**；导入顺序：内置包 → 第三方 → 别名(`@/`) → 相对路径。  
++- **禁止**使用魔法数字/字符串：抽成常量或枚举；公共常量集中在 `src/utils/const.js`（可新增）。
++- 日志：开发中允许 `console.warn/error`；发布代码避免 `console.log`（ESLint 已警告）。
++- 国际化（若启用 i18n）：**不直写中文文案**在组件逻辑中，使用词条。
++
++### 2.2 JavaScript / Vue（MUST）
++- 新代码使用 **`<script setup>`**；旧 Options API 可保留但不新增。  
++- 组件命名 `PascalCase`，变量/函数 `camelCase`，常量 `UPPER_SNAKE_CASE`，资源文件 `kebab-case`。  
++- 组件职责**单一**：容器组件负责数据拉取与路由对接；展示组件只渲染 UI。  
++- **禁止**在模板中写复杂表达式；将计算逻辑移到 `computed`/函数。  
++- **禁止**在 `setup()` 外持有可变全局状态；跨组件共享统一走 **Pinia**。
++- 事件与副作用：使用 `onMounted/onUnmounted`；收尾清理定时器/监听器。
++
++### 2.3 Pinia（MUST）
++- Store 按域拆分：`src/store/modules/user`、`.../app`、`.../permission`。  
++- Store 返回**原子状态 + 派生 getter + 明确的 action**；**不得**在组件直接改内部状态。  
++- 与后端会话相关（token、角色、权限）统一放 `user` store；**刷新/登出**需清理所有依赖状态与路由缓存。
++
++### 2.4 HTTP/接口约定（MUST）
++- 仅通过 `src/utils/request.js` 创建的 **axios 实例**发请求：  
++  - 请求拦截：注入 `Authorization: Bearer <token>`、`X-Trace-Id`、必要的 `Content-Type`。  
++  - 响应拦截：识别 `{ code, msg, data }`；`code !== 200` 统一提示并 `throw`。  
++- **API 模块**示例：
++
++```js
++// src/api/system/user.js
++import request from '@/utils/request'
++
++export function pageUsers(params) {
++  return request({
++    url: '/system/user/page',
++    method: 'get',
++    params
++  })
++}
++```
++
++- 分页参数统一：`pageNum/pageSize/sortField/sortOrder`（按后端约定）。  
++- **禁止**在组件里手写 `fetch('/dev-api/...')`；所有接口在 `src/api/*` 归档。
++
++### 2.5 路由与权限（MUST）
++- `src/permission.js` 统一处理：
++  - **登录校验**：无 token → 去登录；  
++  - **动态路由**：基于后端返回菜单/权限构建；  
++  - **白名单**：登录、错误页等。  
++- 组件按钮级控制使用 `v-hasPermi` / `v-hasRole` 指令；`meta.perms` 与后端权限点同名。
++
++### 2.6 表单与校验（SHOULD）
++- 采用 Element Plus 表单规则 + 自定义校验；错误提示可 i18n。  
++- 敏感数据（手机号/证件号）**脱敏显示**；上传文件**白名单/MIME/大小/并发数**校验。
++
++### 2.7 样式与主题（SHOULD）
++- 全局样式集中在 `src/assets/styles`；遵循 **BEM**；优先 **CSS 变量**。  
++- SVG 图标统一存放 `src/assets/icons`，使用 `vite-plugin-svg-icons`。
++
++### 2.8 性能规范（MUST/SHOULD）
++- 路由与大组件**懒加载**；长列表使用**虚拟滚动**。  
++- 图片使用 `webp/avif` 优先；图标按需引入；不要全量注册图标集。  
++- 打包压缩使用现有 Vite 插件（gzip/brotli）开关由 `VITE_BUILD_COMPRESS` 控制。  
++- **性能基线**：首屏（gzip）**≤ 200KB**，交互响应 **< 100ms**（常规操作）。
++
++### 2.9 安全规范（MUST）
++- XSS：输出进行转义；富文本走白名单；URL 参数/拼接一律 `encodeURIComponent`。  
++- CSRF：所有 API 采用 Token 鉴权；同源下仍不信任 Cookie。  
++- 权限：前端仅控制可见性；**任何危险操作**都要后端二次校验。  
++- 上传下载：校验后缀/MIME/大小与数量；提供取消与失败重试；后台导出需限流。
++
++---
++
++## 3. 构建与环境（Vite）
++
++- 环境键（`.env.*`）：`VITE_APP_TITLE`（标题）、`VITE_APP_ENV`（环境）、`VITE_APP_BASE_API`（前缀/代理）、`VITE_BUILD_COMPRESS`（压缩）。  
++- DevServer：`port: 80`、`host: true`、`open: true`；端口冲突时修改 `vite.config.js`。  
++- 代理：`/dev-api` 与 `^/v3/api-docs/(.*)` 指向 `http://localhost:8080`（后端端口可按需调整）。
++
++**常用命令**
++```bash
++yarn                # 安装依赖
++yarn dev            # 开发
++yarn build:stage    # 测试环境构建
++yarn build:prod     # 生产环境构建
++yarn preview        # 预览
++yarn lint           # ESLint 检查
++yarn lint:fix       # 自动修复
++yarn format         # Prettier 全量格式化
++```
++
++---
++
++## 4. Git 流程与提交（MUST）
++
++- 分支：`main`（可发布）、`feat/*`、`fix/*`、`docs/*`、`chore/*`。  
++- 提交遵循 **Conventional Commits**：
++  - `feat: 用户管理新增导入`
++  - `fix(login): 处理空 token 刷新异常`
++  - `perf(table): 优化大列表渲染`
++  - `refactor(router)!: 重构动态菜单加载`  
++- PR 必须附：影响范围、测试要点、截图（UI 变更）、**回滚方案**。模板见 `.github/pull_request_template.md`。
++
++---
++
++## 5. 智能助理工作流（MUST）
++
++1. **任务澄清**：目标、输入/输出、影响模块（`api/`、`views/`、`store/`、`router/`）。  
++2. **最小变更方案**：逐项列出**新增/修改文件路径**与变更点。  
++3. **接口契约**：请求方法/路径/参数/返回结构，给出 `src/api/*.js` 草案。  
++4. **权限与路由**：新增路由 `meta`、按钮权限与使用位置。  
++5. **测试点**：成功/失败/边界/权限/网络异常（给最小可复现实例）。  
++6. **最小 diff**：按文件分节给代码块，不得夹带无关格式化。  
++7. **回滚**：需要还原时的文件列表与命令。  
++8. **TODO/风险**：埋点、可访问性、性能、兼容性。
++
++---
++
++## 6. 质量门禁（MUST）
++
++- 构建通过，无 ESLint `error`；仅提交必要 diff；无写死后端地址。  
++- 性能：大列表虚拟滚动、懒加载；图片资源与依赖按需。  
++- 安全：XSS/上传下载/权限控制及异常处理到位；敏感日志不出端。  
++- 观测：对关键接口/异常进行埋点或日志上报（按需接入）。
++
++---
++
++## 7. Lint & Format（已提供文件）
++
++- **ESLint**：`.eslintrc.cjs`、`.eslintignore`，脚本 `lint` / `lint:fix`。  
++- **Prettier**：`.prettierrc.json`、`.prettierignore`，脚本 `format`。  
++- **EditorConfig**：`.editorconfig` 统一缩进与换行。
++
++安装（首次）
++```bash
++yarn add -D eslint eslint-plugin-vue eslint-config-prettier prettier
++```
++
++---
++
++## 8. 附录
++
++### 8.1 统一 API 响应结构（示例）
++```json
++{ "code": 200, "msg": "OK", "data": {} }
++```
++
++### 8.2 Vite 代理（片段）
++```js
++// vite.config.js - server.proxy
++'/dev-api': {
++  target: 'http://localhost:8080',
++  changeOrigin: true,
++  rewrite: p => p.replace(/^\/dev-api/, '')
++},
++'^/v3/api-docs/(.*)': {
++  target: 'http://localhost:8080',
++  changeOrigin: true
++}
++```
++
++### 8.3 提交前检查清单（拷贝到 PR）
++- [ ] 仅改动所需文件；无无关格式化
++- [ ] 路由/菜单/权限同步更新（含文档/注释）
++- [ ] API 仅经 `src/api/*`；未硬编码后端地址
++- [ ] 列表/大组件懒加载或性能可接受
++- [ ] 上传/下载有限流与异常提示
++- [ ] 自测截图/动图已附（UI 变更）
++
++---
++
++> 若需偏离本规范，必须在 PR 说明**动机、替代方案、影响范围与回滚方案**并获批准。
+
+diff --git a/.github/pull_request_template.md b/.github/pull_request_template.md
+new file mode 100644
+index 0000000..1111111
+--- a/.github/pull_request_template.md
++++ b/.github/pull_request_template.md
+@@ -0,0 +1,34 @@
++## What’s changed
++- [ ] Feature
++- [ ] Fix
++- [ ] Refactor/Perf
++- [ ] Docs/Build/Chore
++
++### Summary
++Explain the change and why it’s needed.
++
++### Scope of impact
++- [ ] Router / Views
++- [ ] API (`src/api/*`)
++- [ ] Store / State
++- [ ] Upload/Download flow
++- [ ] Env / Build / Config
++
++### Screenshots / Videos (if UI changed)
++<!-- paste images or attach a short mp4/gif -->
++
++### Tests
++- [ ] Success path
++- [ ] Failure path (backend error / network error)
++- [ ] Boundary (empty data / big list)
++- [ ] Permissions (no token / no perms)
++
++### Security & Performance
++- [ ] No hard-coded URLs, use `VITE_APP_BASE_API`
++- [ ] Upload/download limits & whitelist
++- [ ] Lazy-loaded routes / heavy lists optimized
++
++### Rollback plan
++Describe how to revert the change quickly if needed.
++
++Closes #
+
+diff --git a/.eslintrc.cjs b/.eslintrc.cjs
+new file mode 100644
+index 0000000..1111111
+--- a/.eslintrc.cjs
++++ b/.eslintrc.cjs
+@@ -0,0 +1,17 @@
++/* ESLint for Vue 3 + Vite (JS). Requires ESLint 8.x */
++module.exports = {
++  root: true,
++  env: { browser: true, es2021: true, node: true },
++  extends: [
++    'plugin:vue/vue3-recommended',
++    'eslint:recommended',
++    'prettier'
++  ],
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
++  rules: {
++    'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
++    'no-console': ['warn', { allow: ['warn', 'error'] }],
++    'vue/multi-word-component-names': 'off'
++  },
++  ignorePatterns: ['dist/**', 'node_modules/**']
++}
+
+diff --git a/.eslintignore b/.eslintignore
+new file mode 100644
+index 0000000..1111111
+--- a/.eslintignore
++++ b/.eslintignore
+@@ -0,0 +1,3 @@
++dist
++node_modules
++*.min.js
+
+diff --git a/.editorconfig b/.editorconfig
+new file mode 100644
+index 0000000..1111111
+--- a/.editorconfig
++++ b/.editorconfig
+@@ -0,0 +1,8 @@
++root = true
++
++[*]
++charset = utf-8
++end_of_line = lf
++indent_style = space
++indent_size = 2
++insert_final_newline = true
+
+diff --git a/.prettierrc.json b/.prettierrc.json
+new file mode 100644
+index 0000000..1111111
+--- a/.prettierrc.json
++++ b/.prettierrc.json
+@@ -0,0 +1,12 @@
++{
++  "printWidth": 100,
++  "tabWidth": 2,
++  "useTabs": false,
++  "semi": true,
++  "singleQuote": false,
++  "trailingComma": "all",
++  "bracketSpacing": true,
++  "bracketSameLine": false,
++  "arrowParens": "always",
++  "endOfLine": "lf"
++}
+
+diff --git a/.prettierignore b/.prettierignore
+new file mode 100644
+index 0000000..1111111
+--- a/.prettierignore
++++ b/.prettierignore
+@@ -0,0 +1,8 @@
++dist
++node_modules
++*.min.js
++*.png
++*.jpg
++*.jpeg
++*.gif
++*.svg
+
