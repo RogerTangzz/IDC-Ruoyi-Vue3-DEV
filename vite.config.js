@@ -77,3 +77,13 @@ export default defineConfig(({ mode, command }) => {
     }
   }
 })
+
+// server: {
+//   proxy: {
+//     '/dev-api': {
+//       target: 'http://localhost:8080', // ← 改成你的后端地址
+//       changeOrigin: true,
+//       rewrite: (p) => p.replace(/^\/dev-api/, '')
+//     }
+//   }
+// }
