@@ -144,6 +144,13 @@ export const constantRoutes = [
         name: 'InspectionStatistics',
         component: () => import('@/views/inspection/statistics'),
         meta: { title: '统计分析', icon: 'chart' }
+      },
+      // 在巡检管理路由的children中添加
+      {
+        path: 'config',
+        name: 'InspectionConfig',
+        component: () => import('@/views/inspection/config'),
+        meta: { title: '巡检标准配置', icon: 'setting' }
       }
     ]
   }

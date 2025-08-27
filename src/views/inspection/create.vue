@@ -14,9 +14,23 @@
             <el-icon><DocumentCopy /></el-icon>
             复制上次巡检
           </el-button>
-          <el-button type="primary" @click="handleSave" :loading="saving">
+          <el-button 
+            v-if="mode === 'edit' && !isCompleted"
+            type="warning" 
+            @click="handleSaveTemp"
+            :loading="saving"
+          >
+            <el-icon><Document /></el-icon>
+            暂存
+          </el-button>
+          <el-button 
+            type="primary" 
+            @click="handleSave" 
+            :loading="saving"
+            :disabled="isCompleted && mode === 'edit'"
+          >
             <el-icon><Check /></el-icon>
-            保存并检查异常
+            {{ mode === 'edit' ? '更新并检查异常' : '保存并检查异常' }}
           </el-button>
         </div>
       </div>
@@ -26,11 +40,17 @@
     <el-card class="info-card">
       <template #header>
         <span>基本信息</span>
+        <el-tag v-if="mode === 'edit'" :type="form.status === 'completed' ? 'success' : 'warning'" class="status-tag">
+          {{ form.status === 'completed' ? '已完成' : '进行中' }}
+        </el-tag>
       </template>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px" :disabled="isCompleted">
         <el-row :gutter="20">
           <el-col :span="8">
-            <el-form-item label="巡检楼层" prop="floor">
+            <el-form-item label="巡检编号" v-if="mode === 'edit'">
+              <el-input v-model="form.inspectionNo" disabled />
+            </el-form-item>
+            <el-form-item label="巡检楼层" prop="floor" v-else>
               <el-select 
                 v-model="form.floor" 
                 placeholder="请选择楼层"
@@ -53,28 +73,61 @@
                 type="date"
                 placeholder="选择日期"
                 value-format="YYYY-MM-DD"
+                :disabled="mode === 'edit'"
               />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="巡检人员" prop="inspectorName">
-              <el-input v-model="form.inspectorName" placeholder="请输入巡检人员" />
+              <el-input 
+                v-model="form.inspectorName" 
+                placeholder="请输入巡检人员"
+                :disabled="mode === 'edit'"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="接力人员" prop="relayPersonName">
-              <el-input v-model="form.relayPersonName" placeholder="请输入接力人员（可选）" />
+              <el-input 
+                v-model="form.relayPersonName" 
+                placeholder="请输入接力人员（可选）"
+                :disabled="isCompleted"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="16">
             <el-form-item label="备注" prop="remark">
-              <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注信息" />
+              <el-input 
+                v-model="form.remark" 
+                type="textarea" 
+                :rows="2" 
+                placeholder="请输入备注信息"
+                :disabled="isCompleted"
+              />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
+    </el-card>
+
+    <!-- 编辑模式信息 -->
+    <el-card class="edit-info-card" v-if="mode === 'edit'">
+      <el-alert 
+        :title="editAlertTitle"
+        :type="editAlertType"
+        :closable="false"
+        show-icon
+      >
+        <template #default>
+          <div class="edit-info">
+            <div>创建时间：{{ parseTime(form.createTime) }}</div>
+            <div>最后更新：{{ parseTime(form.updateTime) }}</div>
+            <div v-if="form.completedTime">完成时间：{{ parseTime(form.completedTime) }}</div>
+          </div>
+        </template>
+      </el-alert>
     </el-card>
 
     <!-- 巡检项目 -->
@@ -91,16 +144,24 @@
               :status="completionRate === 100 ? 'success' : ''"
             />
           </div>
+          <div class="quick-actions" v-if="!isCompleted">
+            <el-button size="small" @click="handleQuickFillNormal">快速填充正常值</el-button>
+            <el-button size="small" @click="handleClearAll" type="warning">清空所有</el-button>
+          </div>
         </div>
       </template>
 
       <div class="inspection-items">
-        <el-form :model="form" ref="itemsFormRef">
+        <el-form :model="form" ref="itemsFormRef" :disabled="isCompleted">
           <div 
             v-for="(item, index) in inspectionItems" 
             :key="item.id"
             class="inspection-item"
-            :class="{ 'anomaly': isAnomaly(item) }"
+            :class="{ 
+              'anomaly': isAnomaly(item),
+              'completed': form.items[item.id] !== undefined && form.items[item.id] !== null,
+              'unchecked': form.items[item.id] === undefined || form.items[item.id] === null
+            }"
           >
             <div class="item-number">{{ index + 1 }}</div>
             <div class="item-content">
@@ -108,6 +169,13 @@
                 {{ item.label }}
                 <el-tag v-if="item.type === 'number'" size="small" type="info">
                   {{ item.min }}-{{ item.max }} {{ item.unit }}
+                </el-tag>
+                <el-tag 
+                  v-if="mode === 'edit' && form.itemStatus && form.itemStatus[item.id]" 
+                  size="small" 
+                  :type="form.itemStatus[item.id] === 'modified' ? 'warning' : 'info'"
+                >
+                  {{ form.itemStatus[item.id] === 'modified' ? '已修改' : '已检查' }}
                 </el-tag>
               </div>
               <div class="item-input">
@@ -119,6 +187,15 @@
                 >
                   <el-radio :label="true">正常</el-radio>
                   <el-radio :label="false">异常</el-radio>
+                  <el-button 
+                    v-if="mode === 'edit' && !isCompleted" 
+                    link 
+                    type="info" 
+                    size="small"
+                    @click="clearItem(item.id)"
+                  >
+                    清除
+                  </el-button>
                 </el-radio-group>
                 
                 <!-- 数值类型 -->
@@ -139,6 +216,25 @@
                   >
                     超出范围
                   </el-tag>
+                  <el-button 
+                    v-if="mode === 'edit' && !isCompleted" 
+                    link 
+                    type="info" 
+                    size="small"
+                    @click="clearItem(item.id)"
+                  >
+                    清除
+                  </el-button>
+                </div>
+                
+                <!-- 项目备注 -->
+                <div class="item-remark" v-if="mode === 'edit'">
+                  <el-input 
+                    v-model="form.itemRemarks[item.id]" 
+                    placeholder="备注（可选）" 
+                    size="small"
+                    :disabled="isCompleted"
+                  />
                 </div>
               </div>
             </div>
@@ -162,8 +258,9 @@
         :on-success="handleUploadSuccess"
         :limit="9"
         accept="image/*"
+        :disabled="isCompleted"
       >
-        <el-icon><Plus /></el-icon>
+        <el-icon v-if="!isCompleted"><Plus /></el-icon>
         <template #tip>
           <div class="el-upload__tip">支持jpg/png格式，最多上传9张照片</div>
         </template>
@@ -181,14 +278,17 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, DocumentCopy, Document, Check } from '@element-plus/icons-vue'
 import { inspectionApi } from '@/api/inspection'
 import { FLOORS, INSPECTION_ITEMS, ANOMALY_RULES, getAnomalyPriority } from './constants'
 import { getToken } from '@/utils/auth'
+import { parseTime } from '@/utils'
 
 const router = useRouter()
 const route = useRoute()
 
-const mode = ref('create') // create, edit
+// 模式：create 或 edit
+const mode = ref('create')
 const pageTitle = computed(() => mode.value === 'create' ? '新建巡检' : '编辑巡检')
 const saving = ref(false)
 const formRef = ref()
@@ -200,13 +300,20 @@ const dialogImageUrl = ref('')
 // 表单数据
 const form = reactive({
   id: undefined,
+  inspectionNo: '',
   floor: undefined,
   inspectionDate: new Date().toISOString().split('T')[0],
   inspectorName: '',
   relayPersonName: '',
   remark: '',
   items: {},
-  photos: []
+  itemRemarks: {}, // 每个检查项的备注
+  itemStatus: {}, // 每个检查项的状态：checked/modified
+  photos: [],
+  status: 'progress', // progress/completed
+  createTime: undefined,
+  updateTime: undefined,
+  completedTime: undefined
 })
 
 // 验证规则
@@ -215,6 +322,25 @@ const rules = {
   inspectionDate: [{ required: true, message: '请选择巡检日期', trigger: 'change' }],
   inspectorName: [{ required: true, message: '请输入巡检人员', trigger: 'blur' }]
 }
+
+// 是否已完成
+const isCompleted = computed(() => {
+  return mode.value === 'edit' && form.status === 'completed'
+})
+
+// 编辑提示类型
+const editAlertType = computed(() => {
+  if (isCompleted.value) return 'success'
+  if (completionRate.value < 50) return 'warning'
+  return 'info'
+})
+
+// 编辑提示标题
+const editAlertTitle = computed(() => {
+  if (isCompleted.value) return '此巡检已完成，不可编辑'
+  if (completionRate.value < 50) return `巡检进行中，已完成 ${completionRate.value}%`
+  return `巡检即将完成，已完成 ${completionRate.value}%`
+})
 
 // 当前楼层标签
 const currentFloorLabel = computed(() => {
@@ -251,16 +377,70 @@ const uploadHeaders = computed(() => {
 // 切换楼层
 const handleFloorChange = () => {
   form.items = {}
+  form.itemRemarks = {}
+  form.itemStatus = {}
   // 初始化该楼层的所有项目
   inspectionItems.value.forEach(item => {
-    form.items[item.id] = item.type === 'boolean' ? true : null
+    form.items[item.id] = item.type === 'boolean' ? null : null
   })
 }
 
 // 项目值变化
 const handleItemChange = (item) => {
-  // 可以在这里添加实时异常检测逻辑
+  // 标记为已修改
+  if (mode.value === 'edit') {
+    if (form.itemStatus[item.id]) {
+      form.itemStatus[item.id] = 'modified'
+    } else {
+      form.itemStatus[item.id] = 'checked'
+    }
+  }
   console.log(`项目 ${item.label} 值变化为:`, form.items[item.id])
+}
+
+// 清除单个项目
+const clearItem = (itemId) => {
+  form.items[itemId] = null
+  delete form.itemStatus[itemId]
+  delete form.itemRemarks[itemId]
+}
+
+// 快速填充正常值
+const handleQuickFillNormal = () => {
+  ElMessageBox.confirm('是否将所有未填写的项目设置为正常值？', '系统提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    inspectionItems.value.forEach(item => {
+      if (form.items[item.id] === undefined || form.items[item.id] === null) {
+        if (item.type === 'boolean') {
+          form.items[item.id] = true
+        } else if (item.type === 'number') {
+          // 填入正常范围的中间值
+          form.items[item.id] = (item.min + item.max) / 2
+        }
+        if (mode.value === 'edit') {
+          form.itemStatus[item.id] = 'checked'
+        }
+      }
+    })
+    ElMessage.success('已快速填充正常值')
+  })
+}
+
+// 清空所有
+const handleClearAll = () => {
+  ElMessageBox.confirm('是否清空所有巡检数据？', '系统提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    form.items = {}
+    form.itemRemarks = {}
+    form.itemStatus = {}
+    ElMessage.success('已清空所有数据')
+  })
 }
 
 // 判断是否异常
@@ -304,6 +484,26 @@ const handleCopyLast = async () => {
   }
 }
 
+// 暂存
+const handleSaveTemp = async () => {
+  saving.value = true
+  try {
+    const data = {
+      ...form,
+      status: 'progress',
+      totalItems: inspectionItems.value.length,
+      completedItems: Object.keys(form.items).filter(key => 
+        form.items[key] !== undefined && form.items[key] !== null
+      ).length
+    }
+    
+    await inspectionApi.update(form.id, data)
+    ElMessage.success('暂存成功')
+  } finally {
+    saving.value = false
+  }
+}
+
 // 保存并检查异常
 const handleSave = async () => {
   await formRef.value?.validate()
@@ -326,6 +526,8 @@ const handleSave = async () => {
     // 准备数据
     const data = {
       ...form,
+      status: completionRate.value === 100 ? 'completed' : 'progress',
+      completedTime: completionRate.value === 100 ? new Date() : null,
       totalItems: inspectionItems.value.length,
       completedItems: Object.keys(form.items).filter(key => 
         form.items[key] !== undefined && form.items[key] !== null
@@ -337,9 +539,11 @@ const handleSave = async () => {
     if (mode.value === 'edit') {
       await inspectionApi.update(form.id, data)
       inspectionId = form.id
+      ElMessage.success('更新成功')
     } else {
       const res = await inspectionApi.create(data)
       inspectionId = res.data.id
+      ElMessage.success('创建成功')
     }
     
     // 检测异常项
@@ -349,7 +553,7 @@ const handleSave = async () => {
       // 显示异常确认对话框
       await showAnomalyConfirm(inspectionId, anomalies)
     } else {
-      ElMessage.success('保存成功，未发现异常项')
+      ElMessage.success('巡检完成，未发现异常项')
       router.push('/inspection')
     }
   } finally {
@@ -368,7 +572,8 @@ const detectAnomalies = () => {
         itemLabel: item.label,
         value: form.items[item.id],
         floor: form.floor,
-        priority: getAnomalyPriority(item.label)
+        priority: getAnomalyPriority(item.label),
+        remark: form.itemRemarks[item.id] || ''
       })
     }
   })
@@ -401,7 +606,6 @@ const showAnomalyConfirm = async (inspectionId, anomalies) => {
     router.push('/inspection')
   } catch {
     // 用户取消生成工单
-    ElMessage.success('保存成功')
     router.push('/inspection')
   }
 }
@@ -432,17 +636,82 @@ const handleUploadSuccess = (response, uploadFile) => {
 
 // 返回列表
 const goBack = () => {
-  router.back()
+  if (mode.value === 'edit' && completionRate.value > 0 && completionRate.value < 100) {
+    ElMessageBox.confirm('巡检尚未完成，是否确认离开？', '系统提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }).then(() => {
+      router.back()
+    })
+  } else {
+    router.back()
+  }
+}
+
+// 加载巡检数据（编辑模式）
+const loadInspectionData = async (id) => {
+  try {
+    // 模拟加载数据
+    const mockData = {
+      id: id,
+      inspectionNo: 'INS202501001',
+      floor: 'floor1',
+      inspectionDate: '2025-01-15',
+      inspectorName: '张三',
+      relayPersonName: '',
+      remark: '例行巡检',
+      items: {
+        oil_tank: true,
+        electric_room: true,
+        water_pump: false,
+        oil_machine: true,
+        oil_gas: 85
+      },
+      itemRemarks: {
+        water_pump: '水泵有异响，需要检修'
+      },
+      itemStatus: {
+        oil_tank: 'checked',
+        electric_room: 'checked',
+        water_pump: 'checked',
+        oil_machine: 'checked',
+        oil_gas: 'checked'
+      },
+      photos: [],
+      status: 'progress',
+      createTime: '2025-01-15 09:00:00',
+      updateTime: '2025-01-15 10:30:00'
+    }
+    
+    Object.assign(form, mockData)
+    fileList.value = mockData.photos || []
+  } catch (error) {
+    ElMessage.error('加载巡检数据失败')
+    router.back()
+  }
 }
 
 // 初始化
 onMounted(async () => {
+  // 判断是编辑还是创建
   if (route.params.id) {
     mode.value = 'edit'
-    // 加载巡检数据
-    const res = await inspectionApi.get(route.params.id)
-    Object.assign(form, res.data)
-    fileList.value = res.data.photos || []
+    await loadInspectionData(route.params.id)
+  } else if (route.path.includes('edit')) {
+    // 从 URL 判断是编辑模式
+    mode.value = 'edit'
+    const id = route.path.split('/').pop()
+    if (id && id !== 'edit') {
+      await loadInspectionData(id)
+    }
+  } else {
+    mode.value = 'create'
+    // 从查询参数获取楼层
+    if (route.query.floor) {
+      form.floor = route.query.floor
+      handleFloorChange()
+    }
   }
 })
 </script>
@@ -474,15 +743,32 @@ onMounted(async () => {
   }
 
   .info-card,
+  .edit-info-card,
   .items-card,
   .photo-card {
     margin-bottom: 20px;
+  }
+
+  .status-tag {
+    margin-left: 10px;
+  }
+
+  .edit-info-card {
+    .edit-info {
+      display: flex;
+      gap: 30px;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+    }
   }
 
   .items-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
     
     .progress {
       display: flex;
@@ -492,6 +778,11 @@ onMounted(async () => {
       .el-progress {
         width: 200px;
       }
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 10px;
     }
   }
 
@@ -509,6 +800,14 @@ onMounted(async () => {
       &.anomaly {
         background-color: #fef0f0;
       }
+
+      &.completed {
+        background-color: #f0f9ff;
+      }
+
+      &.unchecked {
+        background-color: #fafafa;
+      }
       
       .item-number {
         width: 40px;
@@ -525,12 +824,9 @@ onMounted(async () => {
       
       .item-content {
         flex: 1;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         
         .item-label {
-          flex: 1;
+          margin-bottom: 10px;
           font-size: 14px;
           
           .el-tag {
@@ -539,8 +835,6 @@ onMounted(async () => {
         }
         
         .item-input {
-          width: 300px;
-          
           .number-input {
             display: flex;
             align-items: center;
@@ -552,6 +846,14 @@ onMounted(async () => {
             
             .anomaly-tag {
               margin-left: 10px;
+            }
+          }
+
+          .item-remark {
+            margin-top: 10px;
+            
+            .el-input {
+              width: 300px;
             }
           }
         }

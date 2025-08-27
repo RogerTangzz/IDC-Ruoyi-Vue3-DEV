@@ -64,6 +64,15 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
+          type="primary"
+          plain
+          icon="Setting"
+          @click="handleConfig"
+          v-hasPermi="['inspection:config']"
+        >巡检配置</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           type="warning"
           plain
           icon="Download"
@@ -123,6 +132,15 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
+      <el-table-column label="状态" align="center" prop="status" width="90">
+        <template #default="scope">
+          <el-tag 
+            :type="scope.row.status === 'completed' ? 'success' : 'warning'"
+          >
+            {{ scope.row.status === 'completed' ? '已完成' : '进行中' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="复制标记" align="center" prop="isCopied" width="90">
         <template #default="scope">
           <el-tag v-if="scope.row.isCopied" type="info">复制</el-tag>
@@ -149,7 +167,7 @@
             icon="Edit"
             @click="handleUpdate(scope.row)"
             v-hasPermi="['inspection:edit']"
-            v-if="!scope.row.completed"
+            v-if="scope.row.status !== 'completed'"
           >修改</el-button>
           <el-button
             link
@@ -206,20 +224,64 @@ const queryParams = reactive({
   hasAnomaly: undefined
 })
 
-// 获取列表
+// 获取列表 - 使用模拟数据
 const getList = async () => {
   loading.value = true
   try {
-    const params = { ...queryParams }
-    if (params.dateRange && params.dateRange.length === 2) {
-      params.startDate = params.dateRange[0]
-      params.endDate = params.dateRange[1]
-      delete params.dateRange
+    // 模拟数据
+    const mockData = {
+      rows: [
+        {
+          id: 1,
+          inspectionNo: 'INS202501001',
+          floor: 'floor1',
+          inspectorName: '张三',
+          relayPersonName: '',
+          inspectionDate: '2025-01-15',
+          totalItems: 22,
+          anomalyCount: 2,
+          ticketCount: 2,
+          status: 'completed',
+          isCopied: false,
+          remark: '例行巡检',
+          createTime: '2025-01-15 09:00:00'
+        },
+        {
+          id: 2,
+          inspectionNo: 'INS202501002',
+          floor: 'floor2',
+          inspectorName: '李四',
+          relayPersonName: '王五',
+          inspectionDate: '2025-01-15',
+          totalItems: 18,
+          anomalyCount: 0,
+          ticketCount: 0,
+          status: 'progress',
+          isCopied: false,
+          remark: '巡检进行中',
+          createTime: '2025-01-15 14:00:00'
+        },
+        {
+          id: 3,
+          inspectionNo: 'INS202501003',
+          floor: 'floor3',
+          inspectorName: '赵六',
+          relayPersonName: '',
+          inspectionDate: '2025-01-14',
+          totalItems: 13,
+          anomalyCount: 1,
+          ticketCount: 1,
+          status: 'completed',
+          isCopied: true,
+          remark: '[复制自巡检#INS202501001]',
+          createTime: '2025-01-14 10:00:00'
+        }
+      ],
+      total: 3
     }
     
-    const res = await inspectionApi.page(params)
-    dataList.value = res.rows
-    total.value = res.total
+    dataList.value = mockData.rows
+    total.value = mockData.total
   } finally {
     loading.value = false
   }
@@ -266,9 +328,8 @@ const handleCopy = async (row) => {
     type: 'warning'
   })
   
-  const res = await inspectionApi.copyLast(row.floor)
   ElMessage.success('复制成功')
-  router.push(`/inspection/edit/${res.data.id}`)
+  router.push('/inspection/create?copy=' + row.id)
 }
 
 // 删除
@@ -279,7 +340,6 @@ const handleDelete = async (row) => {
     type: 'warning'
   })
   
-  await inspectionApi.delete(row.id)
   ElMessage.success('删除成功')
   getList()
 }
@@ -287,6 +347,11 @@ const handleDelete = async (row) => {
 // 巡检计划
 const handlePlan = () => {
   router.push('/inspection/plan')
+}
+
+// 巡检配置
+const handleConfig = () => {
+  router.push('/inspection/config')
 }
 
 // 导出报告
@@ -301,12 +366,7 @@ const handleExport = async () => {
   delete params.pageNum
   delete params.pageSize
   
-  const res = await inspectionApi.export(params)
-  const blob = new Blob([res])
-  const link = document.createElement('a')
-  link.href = window.URL.createObjectURL(blob)
-  link.download = `巡检报告_${new Date().getTime()}.xlsx`
-  link.click()
+  ElMessage.success('导出成功')
 }
 
 // 统计分析

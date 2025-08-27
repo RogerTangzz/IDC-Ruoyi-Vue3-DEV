@@ -109,3 +109,45 @@ export function getAnomalyPriority(itemLabel) {
   }
   return 'low'
 }
+
+// 检查项类别
+export const INSPECTION_CATEGORIES = [
+  { value: 'environment', label: '环境', color: 'success' },
+  { value: 'power', label: '电力', color: 'danger' },
+  { value: 'hvac', label: '空调', color: 'primary' },
+  { value: 'fire', label: '消防', color: 'warning' },
+  { value: 'security', label: '安防', color: 'info' },
+  { value: 'other', label: '其他', color: '' }
+]
+
+// 检查方法
+export const CHECK_METHODS = [
+  { value: 'visual', label: '目视检查', desc: '通过观察判断设备状态' },
+  { value: 'instrument', label: '仪表测量', desc: '使用专业仪器测量数值' },
+  { value: 'system', label: '系统读取', desc: '从监控系统自动获取数据' },
+  { value: 'manual', label: '手动测试', desc: '需要动手操作进行测试' }
+]
+
+// 检查频率
+export const CHECK_FREQUENCIES = [
+  { value: 'daily', label: '每日', days: 1 },
+  { value: 'weekly', label: '每周', days: 7 },
+  { value: 'monthly', label: '每月', days: 30 },
+  { value: 'quarterly', label: '每季度', days: 90 }
+]
+
+// 常用单位
+export const COMMON_UNITS = [
+  '°C', '%', 'MPa', 'ppm', 'V', 'A', 'kW', 'Hz', 
+  'dB', 'm³/h', 'L/min', 'bar', 'mm', 'kg/cm²'
+]
+
+// 行业标准参考值
+export const INDUSTRY_STANDARDS = {
+  temperature: { min: 18, max: 28, unit: '°C', desc: 'GB50174-2017 数据中心设计规范' },
+  humidity: { min: 35, max: 75, unit: '%', desc: 'GB50174-2017 数据中心设计规范' },
+  hydrogen: { min: 0, max: 40, unit: 'ppm', desc: '氢气浓度安全标准' },
+  oil_gas: { min: 0, max: 100, unit: 'ppm', desc: '柴油气体浓度安全标准' },
+  ups_load: { min: 0, max: 80, unit: '%', desc: 'UPS负载率建议值' },
+  water_pressure: { min: 0.2, max: 0.6, unit: 'MPa', desc: '冷却水系统压力范围' }
+}
