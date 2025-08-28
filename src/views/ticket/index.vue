@@ -107,9 +107,10 @@
     </el-row>
 
     <!-- 数据表格 -->
-    <el-table 
-      v-loading="loading" 
-      :data="dataList" 
+    <el-table
+      v-loading="loading"
+      :data="dataList"
+      row-key="id"
       @selection-change="handleSelectionChange"
       :default-sort="{ prop: 'createTime', order: 'descending' }"
       :row-class-name="getRowClassName"
@@ -124,9 +125,11 @@
       </el-table-column>
       <el-table-column label="优先级" align="center" prop="priority" width="80">
         <template #default="scope">
-          <el-tag :type="TICKET_PRIORITY[scope.row.priority.toUpperCase()]?.color">
-            {{ TICKET_PRIORITY[scope.row.priority.toUpperCase()]?.label }}
-          </el-tag>
+      <template #default="{ row }">
+       <el-tag :type="TICKET_PRIORITY[(row.priority || '').toString().toUpperCase()]?.color">
+          {{ TICKET_PRIORITY[(row.priority || '').toString().toUpperCase()]?.label || '-' }}
+        </el-tag>
+      </template>
         </template>
       </el-table-column>
       <el-table-column label="剩余时间" align="center" prop="deadline" width="120">
@@ -338,12 +341,15 @@ const handleExport = async () => {
   delete params.pageNum
   delete params.pageSize
   
-  const res = await ticketApi.export(params)
-  const blob = new Blob([res])
-  const link = document.createElement('a')
-  link.href = window.URL.createObjectURL(blob)
-  link.download = `工单_${new Date().getTime()}.xlsx`
-  link.click()
+  const blob = await ticketApi.export(params)  // axios 已设置 responseType: 'blob'
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `工单_${Date.now()}.xlsx`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // 处理超时
