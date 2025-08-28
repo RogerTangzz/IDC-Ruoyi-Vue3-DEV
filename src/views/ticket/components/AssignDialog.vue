@@ -139,7 +139,7 @@ const handleConfirm = async () => {
   
   loading.value = true
   try {
-    // 构建指派数据
+// 构建指派数据
     const assignData = {
       ticketIds: ticketIds.value,
       assigneeId: form.assigneeId,
@@ -175,7 +175,7 @@ const handleCancel = () => {
 
 // 重置表单
 const reset = () => {
-  form.assigneeId = undefined
+form.assigneeId = undefined
   form.priority = 'keep'
   form.comment = ''
   form.notifyMethod = ['system']

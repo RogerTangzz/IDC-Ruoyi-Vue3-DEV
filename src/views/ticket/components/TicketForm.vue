@@ -1,8 +1,7 @@
-<!-- src/views/ticket/components/TicketForm.vue -->
 <template>
   <el-dialog 
     :title="dialogTitle" 
-    v-model="dialogVisible" 
+    v-model="dialogVisible"
     width="800px" 
     append-to-body
     :close-on-click-modal="false"
@@ -143,6 +142,8 @@
           <template #tip>
             <div class="el-upload__tip">支持jpg/png/pdf文件，单个文件不超过10MB</div>
           </template>
+<!-- src/views/ticket/components/TicketForm.vue -->
+
         </el-upload>
       </el-form-item>
 
@@ -151,10 +152,7 @@
       </el-form-item>
     </el-form>
 
-    <template #footer v-if="mode !== 'view'">
-      <el-button @click="cancel">取消</el-button>
-      <el-button type="primary" @click="submitForm">确定</el-button>
-    </template>
+    
   </el-dialog>
 </template>
 
@@ -254,13 +252,13 @@ watch(() => form.priority, (val) => {
 
 // 打开对话框
 const open = async (id, openMode = 'create') => {
-  dialogVisible.value = true
+dialogVisible.value = true
   mode.value = openMode
   reset()
   
   // 加载模板列表
   if (mode.value === 'create') {
-    try {
+try {
       const res = await ticketTemplateApi.list()
       templates.value = res.data || []
     } catch (error) {
@@ -338,7 +336,7 @@ const submitForm = async () => {
       ElMessage.success('新建成功')
     }
     
-    dialogVisible.value = false
+dialogVisible.value = false
     emit('success')
   } finally {
     loading.value = false
@@ -347,7 +345,7 @@ const submitForm = async () => {
 
 // 取消
 const cancel = () => {
-  dialogVisible.value = false
+dialogVisible.value = false
   reset()
 }
 

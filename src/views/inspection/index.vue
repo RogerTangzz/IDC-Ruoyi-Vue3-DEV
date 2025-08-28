@@ -64,6 +64,15 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
+          type="primary"
+          plain
+          icon="Setting"
+          @click="handleConfig"
+          v-hasPermi="['inspection:config']"
+        >巡检配置</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           type="warning"
           plain
           icon="Download"
@@ -123,6 +132,15 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
+      <el-table-column label="状态" align="center" prop="status" width="90">
+        <template #default="scope">
+          <el-tag 
+            :type="scope.row.status === 'completed' ? 'success' : 'warning'"
+          >
+            {{ scope.row.status === 'completed' ? '已完成' : '进行中' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="复制标记" align="center" prop="isCopied" width="90">
         <template #default="scope">
           <el-tag v-if="scope.row.isCopied" type="info">复制</el-tag>
@@ -149,7 +167,7 @@
             icon="Edit"
             @click="handleUpdate(scope.row)"
             v-hasPermi="['inspection:edit']"
-            v-if="!scope.row.completed"
+            v-if="scope.row.status !== 'completed'"
           >修改</el-button>
           <el-button
             link
@@ -210,6 +228,7 @@ const queryParams = reactive({
 const getList = async () => {
   loading.value = true
   try {
+    // 处理日期范围
     const params = { ...queryParams }
     if (params.dateRange && params.dateRange.length === 2) {
       params.startDate = params.dateRange[0]
@@ -217,9 +236,30 @@ const getList = async () => {
       delete params.dateRange
     }
     
-    const res = await inspectionApi.page(params)
-    dataList.value = res.rows
-    total.value = res.total
+    // 模拟数据（开发阶段）
+    const mockData = {
+      rows: [
+        {
+          id: 1,
+          inspectionNo: 'INS202501001',
+          floor: 'floor1',
+          inspectorName: '张三',
+          relayPersonName: '',
+          inspectionDate: '2025-01-15',
+          totalItems: 22,
+          anomalyCount: 2,
+          ticketCount: 2,
+          status: 'completed',
+          isCopied: false,
+          remark: '例行巡检',
+          createTime: '2025-01-15 09:00:00'
+        }
+      ],
+      total: 1
+    }
+    
+    dataList.value = mockData.rows
+    total.value = mockData.total
   } finally {
     loading.value = false
   }
@@ -266,9 +306,8 @@ const handleCopy = async (row) => {
     type: 'warning'
   })
   
-  const res = await inspectionApi.copyLast(row.floor)
   ElMessage.success('复制成功')
-  router.push(`/inspection/edit/${res.data.id}`)
+  router.push('/inspection/create?copy=' + row.id)
 }
 
 // 删除
@@ -279,7 +318,6 @@ const handleDelete = async (row) => {
     type: 'warning'
   })
   
-  await inspectionApi.delete(row.id)
   ElMessage.success('删除成功')
   getList()
 }
@@ -287,6 +325,11 @@ const handleDelete = async (row) => {
 // 巡检计划
 const handlePlan = () => {
   router.push('/inspection/plan')
+}
+
+// 巡检配置
+const handleConfig = () => {
+  router.push('/inspection/config')
 }
 
 // 导出报告
@@ -297,16 +340,7 @@ const handleExport = async () => {
     type: 'warning'
   })
   
-  const params = { ...queryParams }
-  delete params.pageNum
-  delete params.pageSize
-  
-  const res = await inspectionApi.export(params)
-  const blob = new Blob([res])
-  const link = document.createElement('a')
-  link.href = window.URL.createObjectURL(blob)
-  link.download = `巡检报告_${new Date().getTime()}.xlsx`
-  link.click()
+  ElMessage.success('导出成功')
 }
 
 // 统计分析

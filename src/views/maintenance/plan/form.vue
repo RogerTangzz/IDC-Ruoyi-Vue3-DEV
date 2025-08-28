@@ -1,4 +1,3 @@
-<!-- src/views/maintenance/plan/form.vue -->
 <template>
   <div class="maintenance-plan-form">
     <el-card>
@@ -13,6 +12,8 @@
           复制上次计划
         </el-button>
       </template>
+<!-- src/views/maintenance/plan/form.vue -->
+
 
       <el-form 
         ref="formRef" 
@@ -173,7 +174,7 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="执行步骤" prop="steps">
+<el-form-item label="执行步骤" prop="steps">
           <RichTextEditor 
             v-model="form.steps"
             :show-table-tool="true"
@@ -223,6 +224,19 @@
         </el-form-item>
       </el-form>
     </el-card>
+=======
+
+    <!-- 创建表格对话框 -->
+    <el-dialog v-model="tableDialogVisible" title="创建表格" width="500px">
+      <el-form>
+        <el-form-item label="表格规格">
+          <el-input-number v-model="tableRows" :min="1" :max="20" /> 行 ×
+          <el-input-number v-model="tableCols" :min="1" :max="10" /> 列
+        </el-form-item>
+      </el-form>
+      
+    </el-dialog>
+>>>>>>> a4cd09d16b1eadedde536e6ae66cfcda3ec30b96
   </div>
 </template>
 
@@ -232,15 +246,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { maintenancePlanApi } from '@/api/maintenance/plan'
 import { idcValidators } from '@/utils/validate-rules'
+<<<<<<< HEAD
 import RichTextEditor from '@/components/Editor/RichTextEditor.vue'
-
-const route = useRoute()
-const router = useRouter()
-
-// 状态
-const loading = ref(false)
-const formRef = ref()
-const isCopy = ref(false)
 
 // 用户列表（模拟数据）
 const userList = ref([
@@ -252,6 +259,9 @@ const approverList = computed(() => userList.value) // 实际应该筛选管理�
 
 // 判断模式
 const isEdit = computed(() => route.name === 'MaintenancePlanEdit')
+=======
+const isCopy = ref(false)
+>>>>>>> a4cd09d16b1eadedde536e6ae66cfcda3ec30b96
 const planId = computed(() => route.params.id)
 
 // 表单数据
@@ -362,6 +372,7 @@ const incrementVersion = (version) => {
   return 'V1.1'
 }
 
+<<<<<<< HEAD
 // 提交表单
 const handleSubmit = async () => {
   await formRef.value?.validate()
@@ -399,5 +410,12 @@ onMounted(() => {
 <style scoped lang="scss">
 .maintenance-plan-form {
   padding: 20px;
+<<<<<<< HEAD
+=======
+  
+  .steps-editor {
+    width: 100%;
+  }
+>>>>>>> a4cd09d16b1eadedde536e6ae66cfcda3ec30b96
 }
 </style>
