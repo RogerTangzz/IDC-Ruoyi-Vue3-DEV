@@ -1,11 +1,11 @@
-import auth from '@/plugins/auth'
+﻿import auth from '@/plugins/auth'
 import router, { constantRoutes, dynamicRoutes } from '@/router'
 import { getRouters } from '@/api/menu'
-import Layout from '@/layout/index'
+import Layout from '@/layout/index.vue'
 import ParentView from '@/components/ParentView'
 import InnerLink from '@/layout/components/InnerLink'
 
-// 匹配views里面所有的.vue文件
+// 鍖归厤views閲岄潰鎵€鏈夌殑.vue鏂囦欢
 const modules = import.meta.glob('./../../views/**/*.vue')
 
 const usePermissionStore = defineStore(
@@ -34,7 +34,7 @@ const usePermissionStore = defineStore(
       },
       generateRoutes(roles) {
         return new Promise(resolve => {
-          // 向后端请求路由数据
+          // 鍚戝悗绔姹傝矾鐢辨暟鎹?
           getRouters().then(res => {
             const sdata = JSON.parse(JSON.stringify(res.data))
             const rdata = JSON.parse(JSON.stringify(res.data))
@@ -55,14 +55,14 @@ const usePermissionStore = defineStore(
     }
   })
 
-// 遍历后台传来的路由字符串，转换为组件对象
+// 閬嶅巻鍚庡彴浼犳潵鐨勮矾鐢卞瓧绗︿覆锛岃浆鎹负缁勪欢瀵硅薄
 function filterAsyncRouter(asyncRouterMap, lastRouter = false, type = false) {
   return asyncRouterMap.filter(route => {
     if (type && route.children) {
       route.children = filterChildren(route.children)
     }
     if (route.component) {
-      // Layout ParentView 组件特殊处理
+      // Layout ParentView 缁勪欢鐗规畩澶勭悊
       if (route.component === 'Layout') {
         route.component = Layout
       } else if (route.component === 'ParentView') {
@@ -96,7 +96,7 @@ function filterChildren(childrenMap, lastRouter = false) {
   return children
 }
 
-// 动态路由遍历，验证是否具备权限
+// 鍔ㄦ€佽矾鐢遍亶鍘嗭紝楠岃瘉鏄惁鍏峰鏉冮檺
 export function filterDynamicRoutes(routes) {
   const res = []
   routes.forEach(route => {
@@ -125,3 +125,5 @@ export const loadView = (view) => {
 }
 
 export default usePermissionStore
+
+

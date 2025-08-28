@@ -1,5 +1,5 @@
-// src/router/modules/maintenance.js
-import Layout from '@/layout'
+﻿// src/router/modules/maintenance.js
+import Layout from '@/layout/index.vue'
 
 export default {
   path: '/maintenance',
@@ -7,7 +7,7 @@ export default {
   redirect: '/maintenance/plan',
   name: 'Maintenance',
   meta: { 
-    title: '维保计划',
+    title: '缁翠繚璁″垝',
     icon: 'setting',
     perms: ['maintenance:view']
   },
@@ -17,7 +17,7 @@ export default {
       name: 'MaintenancePlanList',
       component: () => import('@/views/maintenance/plan/index'),
       meta: { 
-        title: '计划列表',
+        title: '璁″垝鍒楄〃',
         icon: 'list',
         perms: ['maintenance:list']
       }
@@ -27,7 +27,7 @@ export default {
       name: 'MaintenancePlanAdd',
       component: () => import('@/views/maintenance/plan/form'),
       meta: { 
-        title: '新建计划',
+        title: '鏂板缓璁″垝',
         icon: 'plus',
         perms: ['maintenance:add']
       },
@@ -38,7 +38,7 @@ export default {
       name: 'MaintenancePlanEdit',
       component: () => import('@/views/maintenance/plan/form'),
       meta: { 
-        title: '编辑计划',
+        title: '缂栬緫璁″垝',
         noCache: true,
         perms: ['maintenance:edit']
       },
@@ -49,7 +49,7 @@ export default {
       name: 'MaintenancePlanDetail',
       component: () => import('@/views/maintenance/plan/detail'),
       meta: { 
-        title: '计划详情',
+        title: '璁″垝璇︽儏',
         noCache: true,
         perms: ['maintenance:view']
       },
@@ -60,7 +60,7 @@ export default {
       name: 'MaintenancePlanSubmit',
       component: () => import('@/views/maintenance/plan/submit'),
       meta: { 
-        title: '提交审核',
+        title: '鎻愪氦瀹℃牳',
         noCache: true,
         perms: ['maintenance:submit']
       },
@@ -71,10 +71,11 @@ export default {
       name: 'MaintenanceExecution',
       component: () => import('@/views/maintenance/execution/index'),
       meta: { 
-        title: '执行记录',
+        title: '鎵ц璁板綍',
         icon: 'document',
         perms: ['maintenance:execution']
       }
     }
   ]
 }
+

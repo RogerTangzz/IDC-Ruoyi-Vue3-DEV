@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+﻿import { createApp } from 'vue'
 import Cookies from 'js-cookie'
 
 import ElementPlus from 'element-plus'
@@ -8,7 +8,7 @@ import locale from 'element-plus/es/locale/lang/zh-cn'
 
 import '@/assets/styles/index.scss' // global css
 
-import App from './App'
+import App from './App.vue'
 import store from './store'
 import router from './router'
 import directive from './directive' // directive
@@ -128,7 +128,7 @@ if (import.meta.env.PROD) {
   })
 } else if (import.meta.env.DEV) {
   // 开发环境提供手动控制
-  console.log('📌 开发环境：后台服务未自动启动')
+  console.log('🔧 开发环境：后台服务未自动启动')
   console.log('   可在控制台手动启动: window.startServices()')
   console.log('   可在控制台手动停止: window.stopServices()')
   

@@ -1,0 +1,35 @@
+@"
+diff --git a/src/views/ticket/index.vue b/src/views/ticket/index.vue
+--- a/src/views/ticket/index.vue
++++ b/src/views/ticket/index.vue
+@@ -1,7 +1,7 @@
+ <script setup>
+-// 可能类似：import { ref, reactive, onMounted, computed } from 'vue'
++// 移除未使用的 computed
+-import { ref, reactive, onMounted, computed } from 'vue'
++import { ref, reactive, onMounted } from 'vue'
+ </script>
+
+ <template>
+@@ -20,7 +20,7 @@
+-  <el-table
++  <el-table
+     v-loading="loading"
+     :data="dataList"
+-    @selection-change="handleSelectionChange"
++    row-key="id" @selection-change="handleSelectionChange"
+     :default-sort="{ prop: 'createTime', order: 'descending' }"
+     :row-class-name="getRowClassName"
+   >
+@@ -120,9 +120,11 @@
+     <template #default="scope">
+-      <el-tag :type="TICKET_PRIORITY[scope.row.priority.toUpperCase()]?.color">
+-        {{ TICKET_PRIORITY[scope.row.priority.toUpperCase()]?.label }}
++      <el-tag
++        :type="TICKET_PRIORITY[(scope.row.priority || '').toString().toUpperCase()]?.color"
++      >
++        {{ TICKET_PRIORITY[(scope.row.priority || '').toString().toUpperCase()]?.label || '-' }}
+       </el-tag>
+     </template>
+   </el-table-column>
+"@ | Set-Content -Encoding UTF8 .\0001-fix-ticket-index.patch
